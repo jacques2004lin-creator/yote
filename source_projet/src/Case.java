@@ -47,7 +47,6 @@ public class Case extends JButton implements ActionListener {
             this.occupe = false;
             this.imagePion = null;
             this.setIcon(null);
-            this.setText("");
         } else {
             this.occupe = true;
             String chemin = (p.getCouleur() == CouleurPion.blanc)
@@ -67,11 +66,6 @@ public class Case extends JButton implements ActionListener {
 
             if (this.imagePion.getIconWidth() > 0) {
                 this.setIcon(this.imagePion);
-                this.setText("");
-            } else {
-                // Texte de secours uniquement si le fichier image est introuvable
-                this.setIcon(null);
-                this.setText(p.getCouleur() == CouleurPion.blanc ? "B" : "N");
             }
         }
     }

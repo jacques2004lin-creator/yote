@@ -9,12 +9,6 @@ public class Plateau extends JPanel {
 
     private Case[][] monPlateau;
 
-    // Attributs internes pour gerer proprement l'annulation d'une prise
-    private boolean dernierCoupPrise = false;
-    private Case derniereCaseSautee = null;
-    private Pion dernierPionSaute = null;
-    private Pion dernierPionPrise2 = null;
-
     public Plateau() {
         this.monPlateau = new Case[6][5];
         this.setLayout(new GridLayout(6, 5, 2, 2));
@@ -27,13 +21,6 @@ public class Plateau extends JPanel {
                 this.add(this.monPlateau[i][j]);
             }
         }
-    }
-
-    public Case getCase(int abs, int ord) {
-        if (abs >= 0 && abs < 6 && ord >= 0 && ord < 5) {
-            return this.monPlateau[abs][ord];
-        }
-        return null;
     }
 
     public boolean isIn(Case c) {
@@ -127,12 +114,6 @@ public class Plateau extends JPanel {
 
         Case prise = casePrise(dep, arr);
         CouleurPion couleurAdverse = prise.getPion().getCouleur();
-
-        // Sauvegarde pour annulerCoup
-        this.dernierCoupPrise = true;
-        this.derniereCaseSautee = prise;
-        this.dernierPionSaute = prise.getPion();
-        this.dernierPionPrise2 = new Pion(couleurAdverse);
         Yote.casePrise = null;
 
         // Deplacement du pion sautant et suppression du pion saute
@@ -150,7 +131,7 @@ public class Plateau extends JPanel {
         Yote.scoreBlanc.setText("Score Joueur Blanc \n " + valueOf(Yote.nbPionBlanc));
         Yote.scoreNoir.setText("Score Joueur Noir \n" + valueOf(Yote.nbPionNoir));
 
-        // Si l'adversaire n'a plus aucun pion des la premiere prise, fin de partie immediate
+        // Si l'adversaire n'a plus de pion des la 1ere prise, fin de partie immediate
         if (Yote.nbPionBlanc == 0 || Yote.nbPionNoir == 0) {
             String[] lesTextes = {"Recommencer", "Fermer le jeu"};
             int retour = JOptionPane.showOptionDialog(
@@ -171,7 +152,7 @@ public class Plateau extends JPanel {
             return;
         }
 
-        // Passage a l'etat 2 : attente de la selection du 2eme pion adverse a prendre
+        // Passage a l'etat 2 pour choisir le 2e pion adverse a prendre
         Fenetre.boutonAnnuler.setEnabled(true);
         Yote.etat = 2;
         Yote.fenetrePrincipale.repaint();
@@ -183,20 +164,11 @@ public class Plateau extends JPanel {
             return;
         }
 
-        // Sauvegarde pour annulerCoup
-        this.dernierCoupPrise = false;
-        this.derniereCaseSautee = null;
-        this.dernierPionSaute = null;
-        Yote.casePrise = null;
-
-        // Deplacement (ou pose depuis le stock)
         arr.setPion(dep.getPion());
         dep.setPion(null);
         dep.setBorder(Yote.empty);
 
         Fenetre.boutonAnnuler.setEnabled(true);
-
-        // Changement de joueur et retour a l'etat 0
         Yote.joueur = (Yote.joueur == CouleurPion.blanc) ? CouleurPion.noir : CouleurPion.blanc;
         Yote.etat = 0;
 
@@ -209,35 +181,47 @@ public class Plateau extends JPanel {
             return;
         }
 
-        // Replacer le pion deplace sur sa case d'origine (plateau ou stock)
-        dep.setPion(arr.getPion());
+        Pion pionDeplace = arr.getPion();
+        CouleurPion couleurAttaquant = pionDeplace.getCouleur();
+        CouleurPion couleurAdverse = (couleurAttaquant == CouleurPion.blanc) ? CouleurPion.noir : CouleurPion.blanc;
+
+        // Verifie si le coup precedent etait un saut de prise (distance de 2 sur le plateau)
+        boolean etaitUnePrise = (dep.getTypeCase() == 0)
+                && (Yote.abs(dep.getAbscisse() - arr.getAbscisse()) == 2
+                || Yote.abs(dep.getOrdonnee() - arr.getOrdonnee()) == 2);
+
+        // Replacer le pion sur sa case de depart (plateau ou stock)
+        dep.setPion(pionDeplace);
         arr.setPion(null);
         dep.setBorder(Yote.empty);
         arr.setBorder(Yote.empty);
 
-        if (this.dernierCoupPrise) {
-            // Restituer le 1er pion saute
-            if (this.derniereCaseSautee != null && this.dernierPionSaute != null) {
-                this.derniereCaseSautee.setPion(this.dernierPionSaute);
-                if (this.dernierPionSaute.getCouleur() == CouleurPion.blanc) {
-                    Yote.nbPionBlanc++;
-                } else {
-                    Yote.nbPionNoir++;
-                }
+        if (etaitUnePrise) {
+            // 1. Restituer le pion saute (au milieu entre dep et arr)
+            int midAbs = (dep.getAbscisse() + arr.getAbscisse()) / 2;
+            int midOrd = (dep.getOrdonnee() + arr.getOrdonnee()) / 2;
+            this.monPlateau[midAbs][midOrd].setPion(new Pion(couleurAdverse));
+
+            if (couleurAdverse == CouleurPion.blanc) {
+                Yote.nbPionBlanc++;
+            } else {
+                Yote.nbPionNoir++;
             }
-            // Si le 2eme pion avait deja ete capture (on etait revenu en etat 0), le restituer aussi
+
+            // 2. Si le 2e pion avait deja ete pris (on etait repasse en etat 0), le restituer aussi
             if (Yote.etat == 0 && Yote.casePrise != null && !Yote.casePrise.isOccupe()) {
-                Yote.casePrise.setPion(this.dernierPionPrise2);
-                if (this.dernierPionPrise2.getCouleur() == CouleurPion.blanc) {
+                Yote.casePrise.setPion(new Pion(couleurAdverse));
+                if (couleurAdverse == CouleurPion.blanc) {
                     Yote.nbPionBlanc++;
                 } else {
                     Yote.nbPionNoir++;
                 }
-                Yote.joueur = (Yote.joueur == CouleurPion.blanc) ? CouleurPion.noir : CouleurPion.blanc;
+                Yote.casePrise = null;
             }
+            Yote.joueur = couleurAttaquant;
         } else {
-            // Coup simple : on rend la main au joueur precedent
-            Yote.joueur = (Yote.joueur == CouleurPion.blanc) ? CouleurPion.noir : CouleurPion.blanc;
+            // Coup simple ou pose depuis le stock
+            Yote.joueur = couleurAttaquant;
         }
 
         Yote.scoreBlanc.setText("Score Joueur Blanc \n " + valueOf(Yote.nbPionBlanc));
@@ -258,8 +242,15 @@ public class Plateau extends JPanel {
             }
         }
 
-        Yote.stockBlanc.reinitialiser();
-        Yote.stockNoir.reinitialiser();
+        for (int i = 0; i < 12; i++) {
+            Case cBlanc = (Case) Yote.stockBlanc.getComponent(i);
+            cBlanc.setPion(new Pion(CouleurPion.blanc));
+            cBlanc.setBorder(Yote.empty);
+
+            Case cNoir = (Case) Yote.stockNoir.getComponent(i);
+            cNoir.setPion(new Pion(CouleurPion.noir));
+            cNoir.setBorder(Yote.empty);
+        }
 
         Yote.nbPionBlanc = 12;
         Yote.nbPionNoir = 12;
@@ -269,10 +260,6 @@ public class Plateau extends JPanel {
         Yote.caseDep = null;
         Yote.caseArr = null;
         Yote.casePrise = null;
-
-        this.dernierCoupPrise = false;
-        this.derniereCaseSautee = null;
-        this.dernierPionSaute = null;
 
         Yote.scoreBlanc.setText("Score Joueur Blanc \n " + valueOf(Yote.nbPionBlanc));
         Yote.scoreNoir.setText("Score Joueur Noir \n" + valueOf(Yote.nbPionNoir));

@@ -23,7 +23,6 @@ public class Fenetre extends JFrame {
 
         JPanel fondBouton = new JPanel();
         fondBouton.setLayout(structureBouton);
-        boutonAnnuler.setEnabled(false); // Aucun coup a annuler au demarrage
         fondBouton.add(boutonAnnuler);
         fondBouton.add(boutonReinit);
 
